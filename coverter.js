@@ -142,7 +142,48 @@ config["proxy-groups"] = [
 ];
 
 // ==============================
-// 4. 广告拦截
+// ==============================
+// 4. DNS 国内外分流（Mihomo）
+// ==============================
+config.dns = {
+  ...(config.dns || {}),
+  enable: true,
+  listen: "0.0.0.0:1053",
+  "enhanced-mode": "fake-ip",
+  "fake-ip-range": "198.18.0.1/16",
+  "use-hosts": true,
+  "respect-rules": true,
+  "default-nameserver": ["223.5.5.5", "119.29.29.29"],
+  "proxy-server-nameserver": [
+    "https://dns.alidns.com/dns-query",
+    "https://doh.pub/dns-query"
+  ],
+  nameserver: [
+    "https://1.1.1.1/dns-query",
+    "https://dns.google/dns-query",
+    "https://dns.quad9.net/dns-query"
+  ],
+  "nameserver-policy": {
+    "geosite:cn": [
+      "https://dns.alidns.com/dns-query",
+      "https://doh.pub/dns-query"
+    ],
+    "geosite:geolocation-!cn": [
+      "https://1.1.1.1/dns-query",
+      "https://dns.google/dns-query"
+    ]
+  },
+  "fake-ip-filter": [
+    ...(Array.isArray(config.dns?.["fake-ip-filter"]) ? config.dns["fake-ip-filter"] : []),
+    "*.lan", "*.local", "*.localhost", "localhost",
+    "time.*.com", "time.*.gov", "time.*.edu.cn",
+    "ntp.*.com", "+.pool.ntp.org",
+    "stun.*.*", "stun.*.*.*",
+    "+.msftconnecttest.com", "+.msftncsi.com"
+  ]
+};
+
+// 5. 广告拦截
 // ==============================
 
 config["rule-providers"] =
@@ -158,7 +199,7 @@ config["rule-providers"].Advertising = {
 };
 
 // ==============================
-// 5. GEO 数据
+// 6. GEO 数据
 // ==============================
 
 config["geodata-mode"] = true;
@@ -172,7 +213,7 @@ config["geox-url"] = {
 };
 
 // ==============================
-// 6. 分流规则
+// 7. 分流规则
 // ==============================
 
 config.rules = [
@@ -245,7 +286,7 @@ config.rules = [
 ];
 
 // ==============================
-// 7. 默认选择设置
+// 8. 默认选择设置
 // ==============================
 
 config.profile = {
@@ -254,7 +295,7 @@ config.profile = {
 };
 
 // ==============================
-// 8. 输出
+// 9. 输出
 // ==============================
 
 config.tun.stack = "system";
