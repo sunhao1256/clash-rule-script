@@ -229,6 +229,45 @@ config.rules = [
   "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
   "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
 
+  // 常用办公协作软件优先直连（在 AI / Google 规则之前）
+  // Microsoft Teams / Microsoft 365 / Outlook / OneDrive / SharePoint
+  "DOMAIN-SUFFIX,teams.microsoft.com,DIRECT",
+  "DOMAIN-SUFFIX,teams.cloud.microsoft,DIRECT",
+  "DOMAIN-SUFFIX,teams.live.com,DIRECT",
+  "DOMAIN-SUFFIX,skype.com,DIRECT",
+  "DOMAIN-SUFFIX,lync.com,DIRECT",
+  "DOMAIN-SUFFIX,office.com,DIRECT",
+  "DOMAIN-SUFFIX,office365.com,DIRECT",
+  "DOMAIN-SUFFIX,microsoft365.com,DIRECT",
+  "DOMAIN-SUFFIX,office.net,DIRECT",
+  "DOMAIN-SUFFIX,officeapps.live.com,DIRECT",
+  "DOMAIN-SUFFIX,outlook.com,DIRECT",
+  "DOMAIN-SUFFIX,outlook.office.com,DIRECT",
+  "DOMAIN-SUFFIX,onedrive.com,DIRECT",
+  "DOMAIN-SUFFIX,sharepoint.com,DIRECT",
+  "DOMAIN-SUFFIX,sharepointonline.com,DIRECT",
+  "DOMAIN-SUFFIX,microsoftonline.com,DIRECT",
+  "DOMAIN-SUFFIX,msftauth.net,DIRECT",
+  "DOMAIN-SUFFIX,msauth.net,DIRECT",
+  "DOMAIN-SUFFIX,msftidentity.com,DIRECT",
+
+  // Zoom / Webex
+  "DOMAIN-SUFFIX,zoom.us,DIRECT",
+  "DOMAIN-SUFFIX,zoom.com,DIRECT",
+  "DOMAIN-SUFFIX,zoomcdn.net,DIRECT",
+  "DOMAIN-SUFFIX,webex.com,DIRECT",
+  "DOMAIN-SUFFIX,webexcontent.com,DIRECT",
+
+  // 飞书 / Lark / 钉钉 / 腾讯会议
+  "DOMAIN-SUFFIX,feishu.cn,DIRECT",
+  "DOMAIN-SUFFIX,feishu.net,DIRECT",
+  "DOMAIN-SUFFIX,larksuite.com,DIRECT",
+  "DOMAIN-SUFFIX,larkoffice.com,DIRECT",
+  "DOMAIN-SUFFIX,dingtalk.com,DIRECT",
+  "DOMAIN-SUFFIX,dingtalk.cn,DIRECT",
+  "DOMAIN-SUFFIX,meeting.tencent.com,DIRECT",
+  "DOMAIN-SUFFIX,wemeet.qq.com,DIRECT",
+
   // AI
   "DOMAIN-SUFFIX,openai.com,🤖 AI 服务",
   "DOMAIN-SUFFIX,chatgpt.com,🤖 AI 服务",
