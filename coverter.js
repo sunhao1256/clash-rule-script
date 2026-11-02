@@ -144,34 +144,32 @@ config["proxy-groups"] = [
 // ==============================
 // ==============================
 // 4. DNS 国内外分流（Mihomo）
+// 使用当前网络可访问的国内 DNS，避免国外公共 DNS 直连超时。
+// DNS listen 保留 1053，避免和 OpenClash 的现有监听配置冲突。
+// 这是 Mihomo 内部 DNS；宿主机 127.0.0.53 问题还需独立修复。
 // ==============================
 config.dns = {
   ...(config.dns || {}),
   enable: true,
   listen: "0.0.0.0:1053",
-  "enhanced-mode": "fake-ip",
-  "fake-ip-range": "198.18.0.1/16",
+  ipv6: false,
+  "enhanced-mode": "redir-host",
   "use-hosts": true,
-  "respect-rules": true,
+  "respect-rules": false,
   "default-nameserver": ["223.5.5.5", "119.29.29.29"],
-  "proxy-server-nameserver": [
-    "https://dns.alidns.com/dns-query",
-    "https://doh.pub/dns-query"
-  ],
+  "proxy-server-nameserver": ["223.5.5.5", "119.29.29.29"],
   nameserver: [
-    "https://1.1.1.1/dns-query",
-    "https://dns.google/dns-query",
-    "https://dns.quad9.net/dns-query"
+    "223.5.5.5",
+    "119.29.29.29",
+    "https://dns.alidns.com/dns-query"
   ],
   "nameserver-policy": {
-    "geosite:cn": [
+    "geosite:cn": ["223.5.5.5", "119.29.29.29"],
+    "geosite:geolocation-!cn": [
       "https://dns.alidns.com/dns-query",
       "https://doh.pub/dns-query"
     ],
-    "geosite:geolocation-!cn": [
-      "https://1.1.1.1/dns-query",
-      "https://dns.google/dns-query"
-    ]
+    "+.cloudflarestorage.com": ["223.5.5.5", "119.29.29.29"]
   },
   "fake-ip-filter": [
     ...(Array.isArray(config.dns?.["fake-ip-filter"]) ? config.dns["fake-ip-filter"] : []),
@@ -183,6 +181,7 @@ config.dns = {
   ]
 };
 
+// ==============================
 // 5. 广告拦截
 // ==============================
 
@@ -228,6 +227,20 @@ config.rules = [
   "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
   "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
   "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+
+  // Cloudflare 全家桶与 R2 默认直连（需在通用分流规则之前）
+  "DOMAIN-SUFFIX,cloudflare.com,DIRECT",
+  "DOMAIN-SUFFIX,cloudflare.net,DIRECT",
+  "DOMAIN-SUFFIX,cloudflare-dns.com,DIRECT",
+  "DOMAIN-SUFFIX,cloudflarestorage.com,DIRECT",
+  "DOMAIN-SUFFIX,cloudflareinsights.com,DIRECT",
+  "DOMAIN-SUFFIX,cloudflareaccess.com,DIRECT",
+  "DOMAIN-SUFFIX,cloudflareclient.com,DIRECT",
+  "DOMAIN-SUFFIX,cloudflarestream.com,DIRECT",
+  "DOMAIN-SUFFIX,cloudflarepages.com,DIRECT",
+  "DOMAIN-SUFFIX,cloudflareworkers.com,DIRECT",
+  "DOMAIN-SUFFIX,workers.dev,DIRECT",
+  "DOMAIN-SUFFIX,pages.dev,DIRECT",
 
   // 常用办公协作软件优先直连（在 AI / Google 规则之前）
   // Microsoft Teams / Microsoft 365 / Outlook / OneDrive / SharePoint
