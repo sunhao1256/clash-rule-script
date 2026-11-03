@@ -143,33 +143,26 @@ config["proxy-groups"] = [
 
 // ==============================
 // ==============================
-// 4. DNS 国内外分流（Mihomo）
-// 使用当前网络可访问的国内 DNS，避免国外公共 DNS 直连超时。
-// DNS listen 保留 1053，避免和 OpenClash 的现有监听配置冲突。
-// 这是 Mihomo 内部 DNS；宿主机 127.0.0.53 问题还需独立修复。
+// 4. DNS：统一使用国内 DNS，查询不走代理
+// 国内外域名均使用国内 DNS 直连解析；不使用 DoH/DoT。
+// DNS listen 保持原配置，OpenClash 可按自身设置覆盖端口。
 // ==============================
+const dnsServers = ["223.5.5.5", "119.29.29.29"];
 config.dns = {
   ...(config.dns || {}),
   enable: true,
-  listen: "0.0.0.0:1053",
+  listen: config.dns?.listen || "0.0.0.0:1053",
   ipv6: false,
   "enhanced-mode": "redir-host",
   "use-hosts": true,
   "respect-rules": false,
-  "default-nameserver": ["223.5.5.5", "119.29.29.29"],
-  "proxy-server-nameserver": ["223.5.5.5", "119.29.29.29"],
-  nameserver: [
-    "223.5.5.5",
-    "119.29.29.29",
-    "https://dns.alidns.com/dns-query"
-  ],
+  "default-nameserver": [...dnsServers],
+  "proxy-server-nameserver": [...dnsServers],
+  nameserver: [...dnsServers],
+  // 不区分国内外 DNS 上游，避免国外 DoH 不可用导致解析失败。
   "nameserver-policy": {
-    "geosite:cn": ["223.5.5.5", "119.29.29.29"],
-    "geosite:geolocation-!cn": [
-      "https://dns.alidns.com/dns-query",
-      "https://doh.pub/dns-query"
-    ],
-    "+.cloudflarestorage.com": ["223.5.5.5", "119.29.29.29"]
+    "geosite:cn": [...dnsServers],
+    "geosite:geolocation-!cn": [...dnsServers]
   },
   "fake-ip-filter": [
     ...(Array.isArray(config.dns?.["fake-ip-filter"]) ? config.dns["fake-ip-filter"] : []),
