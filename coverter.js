@@ -435,7 +435,7 @@ config.rules = [
 
 config.profile = {
   ...(config.profile || {}),
-  "store-selected": false
+  "store-selected": true
 };
 
 // ==============================
