@@ -75,7 +75,7 @@ for (const proxy of config.proxies) {
   // 优先使用 Sub-Store 内部来源标签。文件 YAML 转换时元数据可能已丢失；
   // 此时兼容组合订阅生成的节点前缀，如 [source] 节点名。
   const internalName = proxy._subDisplayName || proxy._subName;
-  const prefixMatch = proxy.name.match(/^\\[([^\\]\\r\\n]{1,64})\\](?:\\s|$)/);
+  const prefixMatch = proxy.name.match(/^\[([^\]\r\n]{1,64})\](?:\s|$)/);
   const sourceName = typeof internalName === "string" && internalName.trim()
     ? internalName.trim()
     : prefixMatch ? prefixMatch[1].trim() : "";
