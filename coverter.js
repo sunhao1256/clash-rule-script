@@ -67,6 +67,7 @@ const LOCAL_NODES = {
 const TRANSIT = "中转节点";
 const CHAIN = "中转-KDDI";
 const HOME_GROUP = "家宽代理";
+const HOME_ALL = "家宽";
 const ATrust = "atrust";
 
 // _subName 是 Sub-Store 内部来源标识，并非 Mihomo 支持的节点属性。
@@ -81,7 +82,7 @@ for (const proxy of config.proxies) {
   subGroups.get(label).push(proxy.name);
 }
 const sourceGroups = [];
-const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, CHAIN, HOME_GROUP, ATrust,
+const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, CHAIN, HOME_GROUP, HOME_ALL, ATrust,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   const baseName = "📦 订阅-" + sourceName;
@@ -183,6 +184,13 @@ config["proxy-groups"] = [
     name: HOME_GROUP,
     type: "select",
     proxies: chainAvailable ? [CHAIN, "DIRECT"] : ["DIRECT"]
+  },
+
+  // 家宽：列出所有原始节点和可用的 KDDI 链式节点，手动选择。
+  {
+    name: HOME_ALL,
+    type: "select",
+    proxies: [...names, ...(chainAvailable ? [CHAIN] : [])]
   },
 
   {
