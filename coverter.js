@@ -95,9 +95,11 @@ for (const [sourceName, proxyNames] of subGroups) {
 }
 
 // 寻找原始落地节点，只在内存里复制节点对象，不向仓库写入连接参数。
-// 中转选择全部普通节点；家宽代理只包括来源名为「家宽」的链式副本。
+// 中转选择全部普通节点；家宽代理只包括来源名包含「家宽」的链式副本。
 const transitNames = [...names];
-const homeSourceNames = new Set(subGroups.get("家宽") || []);
+const homeSourceNames = new Set(
+  [...subGroups].filter(([subName]) => subName.includes("家宽")).flatMap(([, proxyNames]) => proxyNames)
+);
 const chainedNames = [];
 const usedNodeNames = new Set(names);
 for (const proxy of [...config.proxies]) {
@@ -112,7 +114,7 @@ for (const proxy of [...config.proxies]) {
   chainedNames.push(chainedName);
 }
 if (!chainedNames.length) {
-  throw new Error("未找到订阅来源「家宽」的节点；请先在 Sub-Store 为该来源保留 _subName 或 [家宽] 前缀");
+  throw new Error("未找到订阅来源名称包含「家宽」的节点；请检查 _subName 或 [订阅名] 前缀");
 }
 // 禁止把 Sub-Store 的内部元数据写入最终 Mihomo YAML。
 for (const p of config.proxies) {
