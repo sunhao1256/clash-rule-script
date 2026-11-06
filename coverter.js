@@ -162,12 +162,11 @@ config["proxy-groups"] = [
   {
     name: MAIN,
     type: "select",
+    // 只列策略组，不直接列出原始节点。
     proxies: [
-      ...names,
       HK, JP, US, SG,
       ...sourceGroups.map(g => g.name),
-      HOME_GROUP,
-      "DIRECT"
+      HOME_GROUP
     ]
   },
 
@@ -179,16 +178,14 @@ config["proxy-groups"] = [
   // 基于 Sub-Store 节点 _subName/_subDisplayName 自动创建订阅分组。
   ...sourceGroups,
 
-  // 中转：原始节点、地区组、订阅来源组，全部手动选。
-  // 不包含 MAIN 或业务组，否则可能通过 HOME_GROUP 形成环路。
+  // 中转：只列国家和订阅来源策略组，不直接列出节点。
+  // 不包含 MAIN/HOME_GROUP/业务组，防止家宽链式连接出现循环引用。
   {
     name: TRANSIT,
     type: "select",
     proxies: [
-      ...transitNames,
       HK, JP, US, SG,
-      ...sourceGroups.map(g => g.name),
-      "DIRECT"
+      ...sourceGroups.map(g => g.name)
     ]
   },
 
