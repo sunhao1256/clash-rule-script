@@ -72,17 +72,22 @@ const ATrust = "atrust";
 const subGroups = new Map();
 for (const proxy of config.proxies) {
   if (!proxy || typeof proxy.name !== "string") continue;
-  const sub = proxy._subDisplayName || proxy._subName;
-  if (typeof sub !== "string" || !sub.trim()) continue;
-  const label = sub.trim();
-  if (!subGroups.has(label)) subGroups.set(label, []);
-  subGroups.get(label).push(proxy.name);
+  // 优先使用 Sub-Store 内部来源标签。文件 YAML 转换时元数据可能已丢失；
+  // 此时兼容组合订阅生成的节点前缀，如 [source] 节点名。
+  const internalName = proxy._subDisplayName || proxy._subName;
+  const prefixMatch = proxy.name.match(/^\\[([^\\]\\r\\n]{1,64})\\](?:\\s|$)/);
+  const sourceName = typeof internalName === "string" && internalName.trim()
+    ? internalName.trim()
+    : prefixMatch ? prefixMatch[1].trim() : "";
+  if (!sourceName) continue;
+  if (!subGroups.has(sourceName)) subGroups.set(sourceName, []);
+  subGroups.get(sourceName).push(proxy.name);
 }
 const sourceGroups = [];
 const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, HOME_GROUP, ATrust,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
-  const baseName = "📦 订阅-" + sourceName;
+  const baseName = "📦 " + sourceName;
   let groupName = baseName;
   for (let n = 2; usedGroupNames.has(groupName) || names.includes(groupName); n++) {
     groupName = baseName + "-" + n;
