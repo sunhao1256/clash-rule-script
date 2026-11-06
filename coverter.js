@@ -65,7 +65,6 @@ const LOCAL_NODES = {
   homeKeyword: "家里Socks"
 };
 const TRANSIT = "中转节点";
-const TRANSIT_AUTO = "♻️ 中转自动选择";
 const CHAIN = "中转-KDDI";
 const HOME_GROUP = "家宽代理";
 const ATrust = "atrust";
@@ -82,7 +81,7 @@ for (const proxy of config.proxies) {
   subGroups.get(label).push(proxy.name);
 }
 const sourceGroups = [];
-const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, TRANSIT_AUTO, CHAIN, HOME_GROUP, ATrust,
+const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, CHAIN, HOME_GROUP, ATrust,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   const baseName = "📦 订阅-" + sourceName;
@@ -173,18 +172,11 @@ config["proxy-groups"] = [
   // 基于 Sub-Store 节点 _subName/_subDisplayName 自动创建订阅分组。
   ...sourceGroups,
 
-  // 只使用原始中转节点；不把链式 KDDI 加进中转组，避免循环引用。
+  // 仅手动选择中转节点，不做延迟自动切换；避免链式线路意外更换。
   ...(transitNames.length ? [{
-    name: TRANSIT_AUTO,
-    type: "url-test",
-    proxies: transitNames,
-    url: testURL,
-    interval: 300,
-    tolerance: 50
-  }, {
     name: TRANSIT,
     type: "select",
-    proxies: [TRANSIT_AUTO, ...transitNames]
+    proxies: transitNames
   }] : []),
 
   {
