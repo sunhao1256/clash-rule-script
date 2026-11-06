@@ -60,12 +60,10 @@ const testURL = "https://www.gstatic.com/generate_204";
 // 可配置匹配条件：只识别现有本地节点名称，不写入节点连接信息。
 // 修改这里的关键字即可切换落地节点或办公节点；中转节点无需指定关键字。
 const LOCAL_NODES = {
-  landingKeyword: "KDDI家宽",
   companyKeyword: "公司Socks",
   homeKeyword: "家里Socks"
 };
 const TRANSIT = "中转节点";
-const CHAIN = "中转机场";
 const HOME_GROUP = "家宽代理";
 const HOME_ALL = "家宽";
 const ATrust = "atrust";
@@ -82,7 +80,7 @@ for (const proxy of config.proxies) {
   subGroups.get(label).push(proxy.name);
 }
 const sourceGroups = [];
-const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, CHAIN, HOME_GROUP, HOME_ALL, ATrust,
+const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, HOME_GROUP, HOME_ALL, ATrust,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   const baseName = "📦 订阅-" + sourceName;
@@ -95,12 +93,23 @@ for (const [sourceName, proxyNames] of subGroups) {
 }
 
 // 寻找原始落地节点，只在内存里复制节点对象，不向仓库写入连接参数。
-const landing = config.proxies.find(p => p && typeof p.name === "string" && p.name.includes(LOCAL_NODES.landingKeyword));
-const transitNames = names.filter(name => !landing || name !== landing.name);
-const chainAvailable = Boolean(landing && transitNames.length && !names.includes(CHAIN));
-if (chainAvailable) {
-  config.proxies.push({ ...landing, name: CHAIN, "dialer-proxy": TRANSIT });
+// 所有原始节点生成仅在订阅处理期间存在的链式副本。
+// 家宽选最终出口，中转节点选前置线路，两组均手动切换。
+const transitNames = [...names];
+const chainedNames = [];
+const usedNodeNames = new Set(names);
+for (const proxy of [...config.proxies]) {
+  if (!proxy || typeof proxy.name !== "string") continue;
+  const base = "链式-" + proxy.name;
+  let chainedName = base;
+  for (let i = 2; usedNodeNames.has(chainedName) || usedGroupNames.has(chainedName); i++) {
+    chainedName = base + "-" + i;
+  }
+  usedNodeNames.add(chainedName);
+  config.proxies.push({ ...proxy, name: chainedName, "dialer-proxy": TRANSIT });
+  chainedNames.push(chainedName);
 }
+if (!chainedNames.length) throw new Error("没有可用的落地候选节点");
 // 禁止把 Sub-Store 的内部元数据写入最终 Mihomo YAML。
 for (const p of config.proxies) {
   if (!p || typeof p !== "object") continue;
@@ -151,7 +160,6 @@ config["proxy-groups"] = [
       AUTO, HK, JP, US, SG,
       ...sourceGroups.map(g => g.name),
       HOME_GROUP, HOME_ALL,
-      ...(chainAvailable ? [CHAIN] : []),
       ...names,
       "DIRECT"
     ]
@@ -174,24 +182,25 @@ config["proxy-groups"] = [
   // 基于 Sub-Store 节点 _subName/_subDisplayName 自动创建订阅分组。
   ...sourceGroups,
 
-  // 中转节点可手动选全部非落地原始节点；不包含链式节点和落地自身，以免环路。
-  ...(transitNames.length ? [{
+  // 前置代理：全部原始节点（不含链式副本，避免循环引用）。
+  {
     name: TRANSIT,
     type: "select",
     proxies: transitNames
-  }] : []),
-
-  {
-    name: HOME_GROUP,
-    type: "select",
-    proxies: [...names, ...(chainAvailable ? [CHAIN] : []), "DIRECT"]
   },
 
-  // 家宽：列出所有原始节点和可用链式节点，手动选择。
+  // 最终落地：选择节点时，实际使用对应的 dialer-proxy 链式副本。
   {
     name: HOME_ALL,
     type: "select",
-    proxies: [...names, ...(chainAvailable ? [CHAIN] : []), "DIRECT"]
+    proxies: chainedNames
+  },
+
+  // 唯一分流入口，且只有「家宽」一个选项。
+  {
+    name: HOME_GROUP,
+    type: "select",
+    proxies: [HOME_ALL]
   },
 
   {
