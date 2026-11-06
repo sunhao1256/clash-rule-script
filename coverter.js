@@ -53,6 +53,10 @@ const HK = "🇭🇰 香港节点";
 const JP = "🇯🇵 日本节点";
 const US = "🇺🇸 美国节点";
 const SG = "🇸🇬 新加坡节点";
+const HK_AUTO = "♻️ 香港自动测速";
+const JP_AUTO = "♻️ 日本自动测速";
+const US_AUTO = "♻️ 美国自动测速";
+const SG_AUTO = "♻️ 新加坡自动测速";
 
 const testURL = "https://www.gstatic.com/generate_204";
 
@@ -82,7 +86,7 @@ for (const proxy of config.proxies) {
   subGroups.get(sourceName).push(proxy.name);
 }
 const sourceGroups = [];
-const usedGroupNames = new Set([MAIN, HK, JP, US, SG, TRANSIT, HOME_GROUP, ATrust,
+const usedGroupNames = new Set([MAIN, HK, JP, US, SG, HK_AUTO, JP_AUTO, US_AUTO, SG_AUTO, TRANSIT, HOME_GROUP, ATrust,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   // 用 Sub-Store 本来的订阅名作为组名，例如 amy，不在代码中固定具体订阅名。
@@ -139,13 +143,30 @@ const nodesFor = re =>
 // 3. 策略组生成
 // ==============================
 
-function regionGroup(name, nodes) {
+function regionGroup(name, nodes, autoName) {
   return {
     name,
     type: "select",
-    proxies: nodes.length ? nodes : ["DIRECT"]
+    // 手动节点排前面；测速为可选项，绝不自动成为默认选择。
+    proxies: nodes.length ? [...nodes, autoName] : ["DIRECT"]
   };
 }
+
+// 仅对有节点的国家创建专属自动测速子组，避免空 url-test。
+function regionAutoGroup(name, nodes) {
+  return nodes.length ? [{
+    name,
+    type: "url-test",
+    proxies: nodes,
+    url: testURL,
+    interval: 300,
+    tolerance: 50
+  }] : [];
+}
+const hkNodes = nodesFor(regex.hk);
+const jpNodes = nodesFor(regex.jp);
+const usNodes = nodesFor(regex.us);
+const sgNodes = nodesFor(regex.sg);
 
 function serviceGroup(name, options = [], first = MAIN) {
   return {
@@ -170,10 +191,15 @@ config["proxy-groups"] = [
     ]
   },
 
-  regionGroup(HK, nodesFor(regex.hk)),
-  regionGroup(JP, nodesFor(regex.jp)),
-  regionGroup(US, nodesFor(regex.us)),
-  regionGroup(SG, nodesFor(regex.sg)),
+  regionGroup(HK, hkNodes, HK_AUTO),
+  regionGroup(JP, jpNodes, JP_AUTO),
+  regionGroup(US, usNodes, US_AUTO),
+  regionGroup(SG, sgNodes, SG_AUTO),
+
+  ...regionAutoGroup(HK_AUTO, hkNodes),
+  ...regionAutoGroup(JP_AUTO, jpNodes),
+  ...regionAutoGroup(US_AUTO, usNodes),
+  ...regionAutoGroup(SG_AUTO, sgNodes),
 
   // 基于 Sub-Store 节点 _subName/_subDisplayName 自动创建订阅分组。
   ...sourceGroups,
