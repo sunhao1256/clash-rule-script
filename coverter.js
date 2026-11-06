@@ -69,16 +69,15 @@ const ATrust = "atrust";
 
 // _subName 是 Sub-Store 内部来源标识，并非 Mihomo 支持的节点属性。
 // 只取来源标签用于运行时动态分组；正式输出之前清理内部元数据。
+// 与上游 operator(proxy._subName) 使用同一来源标识。
+// Sub-Store 节点脚本会将其变为 "[来源] 节点名"；文件转换时字段可能已被剥离。
+// 因此优先 _subName / _subDisplayName，其次解析节点名称最前方的 [来源]。
 const subGroups = new Map();
 for (const proxy of config.proxies) {
   if (!proxy || typeof proxy.name !== "string") continue;
-  // 优先使用 Sub-Store 内部来源标签。文件 YAML 转换时元数据可能已丢失；
-  // 此时兼容组合订阅生成的节点前缀，如 [source] 节点名。
-  const internalName = proxy._subDisplayName || proxy._subName;
-  const prefixMatch = proxy.name.match(/^\[([^\]\r\n]{1,64})\](?:\s|$)/);
-  const sourceName = typeof internalName === "string" && internalName.trim()
-    ? internalName.trim()
-    : prefixMatch ? prefixMatch[1].trim() : "";
+  const originalSubName = proxy._subName || proxy._subDisplayName;
+  const taggedSource = /^\[([^\]\r\n]+)\]/.exec(proxy.name.trim());
+  const sourceName = String(originalSubName || (taggedSource && taggedSource[1]) || "").trim();
   if (!sourceName) continue;
   if (!subGroups.has(sourceName)) subGroups.set(sourceName, []);
   subGroups.get(sourceName).push(proxy.name);
@@ -87,10 +86,10 @@ const sourceGroups = [];
 const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, HOME_GROUP, ATrust,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
-  const baseName = "📦 " + sourceName;
-  let groupName = baseName;
+  // 用 Sub-Store 本来的订阅名作为组名，例如 amy，不在代码中固定具体订阅名。
+  let groupName = sourceName;
   for (let n = 2; usedGroupNames.has(groupName) || names.includes(groupName); n++) {
-    groupName = baseName + "-" + n;
+    groupName = sourceName + "-" + n;
   }
   usedGroupNames.add(groupName);
   sourceGroups.push({ name: groupName, type: "select", proxies: [...new Set(proxyNames)] });
