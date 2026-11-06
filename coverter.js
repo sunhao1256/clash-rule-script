@@ -6,7 +6,7 @@
  * 默认：
  * Apple -> DIRECT
  * 其他业务 -> 🚀 节点选择
- * 主节点 -> ♻️ 自动选择
+ * 所有策略组手动选择，无自动测速
  */
 
 const source = $content ?? $files?.[0] ?? "{}";
@@ -49,7 +49,6 @@ if (!names.length) {
 }
 
 const MAIN = "🚀 节点选择";
-const AUTO = "♻️ 自动选择";
 const HK = "🇭🇰 香港节点";
 const JP = "🇯🇵 日本节点";
 const US = "🇺🇸 美国节点";
@@ -83,7 +82,7 @@ for (const proxy of config.proxies) {
   subGroups.get(sourceName).push(proxy.name);
 }
 const sourceGroups = [];
-const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, HOME_GROUP, ATrust,
+const usedGroupNames = new Set([MAIN, HK, JP, US, SG, TRANSIT, HOME_GROUP, ATrust,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   // 用 Sub-Store 本来的订阅名作为组名，例如 amy，不在代码中固定具体订阅名。
@@ -96,23 +95,25 @@ for (const [sourceName, proxyNames] of subGroups) {
 }
 
 // 寻找原始落地节点，只在内存里复制节点对象，不向仓库写入连接参数。
-// 所有原始节点生成仅在订阅处理期间存在的链式副本。
-// 家宽代理选最终出口，中转节点选前置线路，两组均手动切换。
+// 中转选择全部普通节点；家宽代理只包括来源名为「家宽」的链式副本。
 const transitNames = [...names];
+const homeSourceNames = new Set(subGroups.get("家宽") || []);
 const chainedNames = [];
 const usedNodeNames = new Set(names);
 for (const proxy of [...config.proxies]) {
-  if (!proxy || typeof proxy.name !== "string") continue;
+  if (!proxy || typeof proxy.name !== "string" || !homeSourceNames.has(proxy.name)) continue;
   const base = "链式-" + proxy.name;
   let chainedName = base;
-  for (let i = 2; usedNodeNames.has(chainedName) || usedGroupNames.has(chainedName); i++) {
-    chainedName = base + "-" + i;
+  for (let n = 2; usedNodeNames.has(chainedName) || usedGroupNames.has(chainedName); n++) {
+    chainedName = base + "-" + n;
   }
   usedNodeNames.add(chainedName);
   config.proxies.push({ ...proxy, name: chainedName, "dialer-proxy": TRANSIT });
   chainedNames.push(chainedName);
 }
-if (!chainedNames.length) throw new Error("没有可用的落地候选节点");
+if (!chainedNames.length) {
+  throw new Error("未找到订阅来源「家宽」的节点；请先在 Sub-Store 为该来源保留 _subName 或 [家宽] 前缀");
+}
 // 禁止把 Sub-Store 的内部元数据写入最终 Mihomo YAML。
 for (const p of config.proxies) {
   if (!p || typeof p !== "object") continue;
@@ -140,7 +141,7 @@ function regionGroup(name, nodes) {
   return {
     name,
     type: "select",
-    proxies: nodes.length ? nodes : [AUTO]
+    proxies: nodes.length ? nodes : ["DIRECT"]
   };
 }
 
@@ -160,21 +161,12 @@ config["proxy-groups"] = [
     name: MAIN,
     type: "select",
     proxies: [
-      AUTO, HK, JP, US, SG,
+      ...names,
+      HK, JP, US, SG,
       ...sourceGroups.map(g => g.name),
       HOME_GROUP,
-      ...names,
       "DIRECT"
     ]
-  },
-
-  {
-    name: AUTO,
-    type: "url-test",
-    proxies: names,
-    url: testURL,
-    interval: 300,
-    tolerance: 50
   },
 
   regionGroup(HK, nodesFor(regex.hk)),
@@ -185,14 +177,20 @@ config["proxy-groups"] = [
   // 基于 Sub-Store 节点 _subName/_subDisplayName 自动创建订阅分组。
   ...sourceGroups,
 
-  // 前置代理：全部原始节点（不含链式副本，避免循环引用）。
+  // 中转：原始节点、地区组、订阅来源组，全部手动选。
+  // 不包含 MAIN 或业务组，否则可能通过 HOME_GROUP 形成环路。
   {
     name: TRANSIT,
     type: "select",
-    proxies: transitNames
+    proxies: [
+      ...transitNames,
+      HK, JP, US, SG,
+      ...sourceGroups.map(g => g.name),
+      "DIRECT"
+    ]
   },
 
-  // 家宽代理：全部链式副本，直接选择出口节点；每个副本都经过「中转节点」。
+  // 家宽代理：仅来源「家宽」的链式副本，全部经过「中转节点」。
   {
     name: HOME_GROUP,
     type: "select",
@@ -232,7 +230,7 @@ config["proxy-groups"] = [
   ], "DIRECT"),
 
   serviceGroup("🐟 漏网之鱼", [
-    AUTO, "DIRECT"
+    "DIRECT"
   ])
 ];
 
