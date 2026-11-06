@@ -57,6 +57,59 @@ const SG = "🇸🇬 新加坡节点";
 
 const testURL = "https://www.gstatic.com/generate_204";
 
+// 可配置匹配条件：只识别现有本地节点名称，不写入节点连接信息。
+// 修改这里的关键字即可切换落地节点或办公节点；中转节点无需指定关键字。
+const LOCAL_NODES = {
+  landingKeyword: "KDDI家宽",
+  companyKeyword: "公司Socks",
+  homeKeyword: "家里Socks"
+};
+const TRANSIT = "中转节点";
+const TRANSIT_AUTO = "♻️ 中转自动选择";
+const CHAIN = "中转-KDDI";
+const HOME_GROUP = "家宽代理";
+const ATrust = "atrust";
+
+// _subName 是 Sub-Store 内部来源标识，并非 Mihomo 支持的节点属性。
+// 只取来源标签用于运行时动态分组；正式输出之前清理内部元数据。
+const subGroups = new Map();
+for (const proxy of config.proxies) {
+  if (!proxy || typeof proxy.name !== "string") continue;
+  const sub = proxy._subDisplayName || proxy._subName;
+  if (typeof sub !== "string" || !sub.trim()) continue;
+  const label = sub.trim();
+  if (!subGroups.has(label)) subGroups.set(label, []);
+  subGroups.get(label).push(proxy.name);
+}
+const sourceGroups = [];
+const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, TRANSIT_AUTO, CHAIN, HOME_GROUP, ATrust,
+  "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
+for (const [sourceName, proxyNames] of subGroups) {
+  const baseName = "📦 订阅-" + sourceName;
+  let groupName = baseName;
+  for (let n = 2; usedGroupNames.has(groupName) || names.includes(groupName); n++) {
+    groupName = baseName + "-" + n;
+  }
+  usedGroupNames.add(groupName);
+  sourceGroups.push({ name: groupName, type: "select", proxies: [...new Set(proxyNames)] });
+}
+
+// 寻找原始落地节点，只在内存里复制节点对象，不向仓库写入连接参数。
+const landing = config.proxies.find(p => p && typeof p.name === "string" && p.name.includes(LOCAL_NODES.landingKeyword));
+const transitNames = names.filter(name => !landing || name !== landing.name);
+const chainAvailable = Boolean(landing && transitNames.length && !names.includes(CHAIN));
+if (chainAvailable) {
+  config.proxies.push({ ...landing, name: CHAIN, "dialer-proxy": TRANSIT });
+}
+// 禁止把 Sub-Store 的内部元数据写入最终 Mihomo YAML。
+for (const p of config.proxies) {
+  if (!p || typeof p !== "object") continue;
+  for (const k of Object.keys(p)) {
+    if (k.startsWith("_")) delete p[k];
+  }
+}
+
+
 const regex = {
   hk: /香港|港(?!币)|hong[\s-]?kong|\bHK\b|🇭🇰/i,
   jp: /日本|东京|大阪|japan|tokyo|osaka|\bJP\b|🇯🇵/i,
@@ -96,6 +149,8 @@ config["proxy-groups"] = [
     type: "select",
     proxies: [
       AUTO, HK, JP, US, SG,
+      ...sourceGroups.map(g => g.name),
+      ...(chainAvailable ? [HOME_GROUP] : []),
       ...names,
       "DIRECT"
     ]
@@ -114,6 +169,40 @@ config["proxy-groups"] = [
   regionGroup(JP, nodesFor(regex.jp)),
   regionGroup(US, nodesFor(regex.us)),
   regionGroup(SG, nodesFor(regex.sg)),
+
+  // 基于 Sub-Store 节点 _subName/_subDisplayName 自动创建订阅分组。
+  ...sourceGroups,
+
+  // 只使用原始中转节点；不把链式 KDDI 加进中转组，避免循环引用。
+  ...(transitNames.length ? [{
+    name: TRANSIT_AUTO,
+    type: "url-test",
+    proxies: transitNames,
+    url: testURL,
+    interval: 300,
+    tolerance: 50
+  }, {
+    name: TRANSIT,
+    type: "select",
+    proxies: [TRANSIT_AUTO, ...transitNames]
+  }] : []),
+
+  {
+    name: HOME_GROUP,
+    type: "select",
+    proxies: chainAvailable ? [CHAIN, "DIRECT"] : ["DIRECT"]
+  },
+
+  {
+    name: ATrust,
+    type: "select",
+    proxies: [
+      ...[LOCAL_NODES.companyKeyword, LOCAL_NODES.homeKeyword]
+        .map(keyword => names.find(name => name.includes(keyword)))
+        .filter(Boolean),
+      "DIRECT"
+    ]
+  },
 
   serviceGroup("🤖 AI 服务", [
     US, JP, SG, "DIRECT"
@@ -209,6 +298,16 @@ config["geox-url"] = {
 // ==============================
 
 config.rules = [
+  // 本地自定义分流：在通用分流和 GEO 规则之前
+  "DOMAIN-SUFFIX,lulu,DIRECT",
+  "DOMAIN-SUFFIX,onitsukatiger.com,家宽代理",
+  "DOMAIN-SUFFIX,onitsukatiger.jp,家宽代理",
+  "DOMAIN-KEYWORD,mercari,家宽代理",
+  "DOMAIN-SUFFIX,mercari.com,家宽代理",
+  "DOMAIN-SUFFIX,mercari.jp,家宽代理",
+  "DOMAIN-SUFFIX,merpay.com,家宽代理",
+  "DOMAIN-SUFFIX,mercdn.net,家宽代理",
+
   // 局域网
   "DOMAIN-SUFFIX,localhost,DIRECT",
   "DOMAIN-SUFFIX,local,DIRECT",
