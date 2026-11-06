@@ -65,7 +65,7 @@ const LOCAL_NODES = {
   homeKeyword: "家里Socks"
 };
 const TRANSIT = "中转节点";
-const CHAIN = "中转-KDDI";
+const CHAIN = "中转机场";
 const HOME_GROUP = "家宽代理";
 const HOME_ALL = "家宽";
 const ATrust = "atrust";
@@ -150,7 +150,8 @@ config["proxy-groups"] = [
     proxies: [
       AUTO, HK, JP, US, SG,
       ...sourceGroups.map(g => g.name),
-      ...(chainAvailable ? [HOME_GROUP] : []),
+      HOME_GROUP, HOME_ALL,
+      ...(chainAvailable ? [CHAIN] : []),
       ...names,
       "DIRECT"
     ]
@@ -173,7 +174,7 @@ config["proxy-groups"] = [
   // 基于 Sub-Store 节点 _subName/_subDisplayName 自动创建订阅分组。
   ...sourceGroups,
 
-  // 仅手动选择中转节点，不做延迟自动切换；避免链式线路意外更换。
+  // 中转节点可手动选全部非落地原始节点；不包含链式节点和落地自身，以免环路。
   ...(transitNames.length ? [{
     name: TRANSIT,
     type: "select",
@@ -183,14 +184,14 @@ config["proxy-groups"] = [
   {
     name: HOME_GROUP,
     type: "select",
-    proxies: chainAvailable ? [CHAIN, "DIRECT"] : ["DIRECT"]
+    proxies: [...names, ...(chainAvailable ? [CHAIN] : []), "DIRECT"]
   },
 
-  // 家宽：列出所有原始节点和可用的 KDDI 链式节点，手动选择。
+  // 家宽：列出所有原始节点和可用链式节点，手动选择。
   {
     name: HOME_ALL,
     type: "select",
-    proxies: [...names, ...(chainAvailable ? [CHAIN] : [])]
+    proxies: [...names, ...(chainAvailable ? [CHAIN] : []), "DIRECT"]
   },
 
   {
