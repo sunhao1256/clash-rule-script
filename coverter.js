@@ -447,5 +447,23 @@ config.profile = {
 
 config.tun.stack = "system";
 
-$content = ProxyUtils.yaml.dump(config);
+// 最终兜底：即使前面的逻辑被后续修改，也不允许主选择/中转组出现单个节点。
+const onlyGroups = [
+  HK, JP, US, SG,
+  ...sourceGroups.map(g => g.name)
+];
+const mainGroup = config["proxy-groups"].find(g => g.name === MAIN);
+const transitGroup = config["proxy-groups"].find(g => g.name === TRANSIT);
+if (!mainGroup || !transitGroup) {
+  throw new Error("缺少节点选择或中转节点策略组");
+}
+mainGroup.proxies = [...onlyGroups, HOME_GROUP];
+transitGroup.proxies = [...onlyGroups];
+for (const group of [mainGroup, transitGroup]) {
+  if (group.proxies.some(name => names.includes(name))) {
+    throw new Error("策略组校验失败：顶层组意外包含原始节点");
+  }
+}
+// 仅在本地生成的 YAML 开头加入非敏感版本标记，供排查执行脚本版本。
+$content = "# coverter-build: groups-only-20261106-v1\n" + ProxyUtils.yaml.dump(config);
 
