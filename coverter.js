@@ -65,7 +65,6 @@ const LOCAL_NODES = {
 };
 const TRANSIT = "中转节点";
 const HOME_GROUP = "家宽代理";
-const HOME_ALL = "家宽";
 const ATrust = "atrust";
 
 // _subName 是 Sub-Store 内部来源标识，并非 Mihomo 支持的节点属性。
@@ -80,7 +79,7 @@ for (const proxy of config.proxies) {
   subGroups.get(label).push(proxy.name);
 }
 const sourceGroups = [];
-const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, HOME_GROUP, HOME_ALL, ATrust,
+const usedGroupNames = new Set([MAIN, AUTO, HK, JP, US, SG, TRANSIT, HOME_GROUP, ATrust,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   const baseName = "📦 订阅-" + sourceName;
@@ -94,7 +93,7 @@ for (const [sourceName, proxyNames] of subGroups) {
 
 // 寻找原始落地节点，只在内存里复制节点对象，不向仓库写入连接参数。
 // 所有原始节点生成仅在订阅处理期间存在的链式副本。
-// 家宽选最终出口，中转节点选前置线路，两组均手动切换。
+// 家宽代理选最终出口，中转节点选前置线路，两组均手动切换。
 const transitNames = [...names];
 const chainedNames = [];
 const usedNodeNames = new Set(names);
@@ -159,7 +158,7 @@ config["proxy-groups"] = [
     proxies: [
       AUTO, HK, JP, US, SG,
       ...sourceGroups.map(g => g.name),
-      HOME_GROUP, HOME_ALL,
+      HOME_GROUP,
       ...names,
       "DIRECT"
     ]
@@ -189,18 +188,11 @@ config["proxy-groups"] = [
     proxies: transitNames
   },
 
-  // 最终落地：选择节点时，实际使用对应的 dialer-proxy 链式副本。
-  {
-    name: HOME_ALL,
-    type: "select",
-    proxies: chainedNames
-  },
-
-  // 唯一分流入口，且只有「家宽」一个选项。
+  // 家宽代理：全部链式副本，直接选择出口节点；每个副本都经过「中转节点」。
   {
     name: HOME_GROUP,
     type: "select",
-    proxies: [HOME_ALL]
+    proxies: chainedNames
   },
 
   {
