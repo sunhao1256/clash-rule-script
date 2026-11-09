@@ -88,7 +88,7 @@ for (const proxy of config.proxies) {
 }
 const sourceGroups = [];
 const usedGroupNames = new Set([MAIN, MAIN_AUTO, HK, JP, US, SG, HK_AUTO, JP_AUTO, US_AUTO, SG_AUTO, TRANSIT, HOME_GROUP, ATrust,
-  "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
+  "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "💬 社交通信", "💰 金融服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   // 用 Sub-Store 本来的订阅名作为组名，例如 amy，不在代码中固定具体订阅名。
   let groupName = sourceName;
@@ -300,6 +300,16 @@ config["proxy-groups"] = [
     HK, JP, US, "DIRECT"
   ]),
 
+  // 社交平台单独选出口，避免 Telegram / WhatsApp 经常切换线路。
+  serviceGroup("💬 社交通信", [
+    HK, JP, US, SG, "DIRECT"
+  ]),
+
+  // 金融服务手动指定稳定出口，不接入 url-test 自动切换。
+  serviceGroup("💰 金融服务", [
+    HK, JP, US, SG, "DIRECT"
+  ]),
+
   // Apple 默认 DIRECT
   serviceGroup("🍎 Apple 服务", [
     MAIN, HK, JP, US
@@ -392,6 +402,8 @@ config.rules = [
   "DOMAIN-SUFFIX,localhost,DIRECT",
   "DOMAIN-SUFFIX,local,DIRECT",
   "DOMAIN-SUFFIX,lan,DIRECT",
+  "DOMAIN-SUFFIX,ts.net,DIRECT",
+  "DOMAIN-SUFFIX,tailscale.com,DIRECT",
   "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
   "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
   "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
@@ -453,6 +465,27 @@ config.rules = [
   "DOMAIN-SUFFIX,meeting.tencent.com,DIRECT",
   "DOMAIN-SUFFIX,wemeet.qq.com,DIRECT",
 
+  // 海外社交通信（置于 GEO 和兜底规则之前）
+  "DOMAIN-SUFFIX,telegram.org,💬 社交通信",
+  "DOMAIN-SUFFIX,telegram.me,💬 社交通信",
+  "DOMAIN-SUFFIX,t.me,💬 社交通信",
+  "DOMAIN-SUFFIX,telegra.ph,💬 社交通信",
+  "DOMAIN-SUFFIX,tdesktop.com,💬 社交通信",
+  "DOMAIN-SUFFIX,whatsapp.com,💬 社交通信",
+  "DOMAIN-SUFFIX,whatsapp.net,💬 社交通信",
+  "DOMAIN-SUFFIX,facebook.com,💬 社交通信",
+  "DOMAIN-SUFFIX,fbcdn.net,💬 社交通信",
+  "DOMAIN-SUFFIX,instagram.com,💬 社交通信",
+  "DOMAIN-SUFFIX,cdninstagram.com,💬 社交通信",
+  "DOMAIN-SUFFIX,threads.net,💬 社交通信",
+  "DOMAIN-SUFFIX,x.com,💬 社交通信",
+  "DOMAIN-SUFFIX,twitter.com,💬 社交通信",
+  "DOMAIN-SUFFIX,twimg.com,💬 社交通信",
+
+  // 金融平台（先只覆盖明确的官方域名，不对银行/CDN进行宽泛匹配）
+  "DOMAIN-SUFFIX,interactivebrokers.com,💰 金融服务",
+  "DOMAIN-SUFFIX,ibkr.com,💰 金融服务",
+
   // AI
   "DOMAIN-SUFFIX,openai.com,🤖 AI 服务",
   "DOMAIN-SUFFIX,chatgpt.com,🤖 AI 服务",
@@ -487,10 +520,21 @@ config.rules = [
   "DOMAIN-SUFFIX,githubusercontent.com,💻 开发服务",
   "DOMAIN-SUFFIX,githubassets.com,💻 开发服务",
   "DOMAIN-SUFFIX,github.io,💻 开发服务",
+  "DOMAIN-SUFFIX,github.dev,💻 开发服务",
+  "DOMAIN-SUFFIX,githubcopilot.com,💻 开发服务",
+  "DOMAIN-SUFFIX,githubapp.com,💻 开发服务",
+  "DOMAIN-SUFFIX,githubstatus.com,💻 开发服务",
+  "DOMAIN-SUFFIX,github-cloud.s3.amazonaws.com,💻 开发服务",
+  "DOMAIN-SUFFIX,github-production-release-asset-2e65be.s3.amazonaws.com,💻 开发服务",
+  "DOMAIN-SUFFIX,objects.githubusercontent.com,💻 开发服务",
+  "DOMAIN-SUFFIX,release-assets.githubusercontent.com,💻 开发服务",
   "DOMAIN-SUFFIX,docker.io,💻 开发服务",
   "DOMAIN-SUFFIX,docker.com,💻 开发服务",
   "DOMAIN-SUFFIX,ghcr.io,💻 开发服务",
+  "DOMAIN-SUFFIX,registry.npmjs.org,💻 开发服务",
   "DOMAIN-SUFFIX,npmjs.org,💻 开发服务",
+  "DOMAIN-SUFFIX,files.pythonhosted.org,💻 开发服务",
+  "DOMAIN-SUFFIX,pypi.org,💻 开发服务",
 
   // Apple 默认直连
   "DOMAIN-SUFFIX,apple.com,🍎 Apple 服务",
