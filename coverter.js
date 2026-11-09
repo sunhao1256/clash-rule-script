@@ -307,8 +307,8 @@ config["proxy-groups"] = [
 
   // 金融服务手动指定稳定出口，不接入 url-test 自动切换。
   serviceGroup("💰 金融服务", [
-    HK, JP, US, SG, "DIRECT"
-  ]),
+    MAIN, HK, JP, US, SG
+  ], "DIRECT"),
 
   // Apple 默认 DIRECT
   serviceGroup("🍎 Apple 服务", [
