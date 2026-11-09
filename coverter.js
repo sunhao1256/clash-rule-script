@@ -171,7 +171,7 @@ for (const nodeName of names) {
   ) : "";
   // 优先匹配明确的地区文字，避免「🇨🇳 台湾 01」错误归入 CN。
   // 只把国旗作为缺乏明确地名时的兜底识别。
-  const labelWithoutFlags = label.replace(/[\\u{1F1E6}-\\u{1F1FF}]{2}/gu, " ");
+  const labelWithoutFlags = label.replace(/[\u{1F1E6}-\u{1F1FF}]{2}/gu, " ");
   const byText = regionCatalog.find(([, , , regex]) => regex.test(labelWithoutFlags));
   const def = byText || regionCatalog.find(([code]) => code === codeFromFlag);
   // 未列出的国旗仍可动态生成，例如 🇳🇴 → 🇳🇴 NO节点。
