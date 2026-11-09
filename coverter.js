@@ -49,6 +49,7 @@ if (!names.length) {
 }
 
 const MAIN = "🚀 节点选择";
+const MAIN_AUTO = "♻️ 全部节点自动测速";
 const HK = "🇭🇰 香港节点";
 const JP = "🇯🇵 日本节点";
 const US = "🇺🇸 美国节点";
@@ -86,7 +87,7 @@ for (const proxy of config.proxies) {
   subGroups.get(sourceName).push(proxy.name);
 }
 const sourceGroups = [];
-const usedGroupNames = new Set([MAIN, HK, JP, US, SG, HK_AUTO, JP_AUTO, US_AUTO, SG_AUTO, TRANSIT, HOME_GROUP, ATrust,
+const usedGroupNames = new Set([MAIN, MAIN_AUTO, HK, JP, US, SG, HK_AUTO, JP_AUTO, US_AUTO, SG_AUTO, TRANSIT, HOME_GROUP, ATrust,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   // 用 Sub-Store 本来的订阅名作为组名，例如 amy，不在代码中固定具体订阅名。
@@ -129,44 +130,88 @@ for (const p of config.proxies) {
 }
 
 
-const regex = {
-  hk: /香港|港(?!币)|hong[\s-]?kong|\bHK\b|🇭🇰/i,
-  jp: /日本|东京|大阪|japan|tokyo|osaka|\bJP\b|🇯🇵/i,
-  us: /美国|美西|美东|洛杉矶|硅谷|纽约|united[\s-]?states|los[\s-]?angeles|\bUS\b|🇺🇸/i,
-  sg: /新加坡|狮城|singapore|\bSG\b|🇸🇬/i
-};
-
-const nodesFor = re =>
-  names.filter(name => re.test(name));
-
-// ==============================
-// 3. 策略组生成
-// ==============================
+// 按节点地区标签动态生成国家/地区组；支持国旗、常见中文/英文名称及国家代码。
+// 没有地区标签的节点继续留在来源分组，不会被错误划到某个国家。
+const regionCatalog = [
+  ["HK", "🇭🇰", "香港", /香港|hong[\s-]?kong|(?:^|[\s_-])HK(?=$|[\s_-]|\d)/i],
+  ["JP", "🇯🇵", "日本", /日本|东京|大阪|japan|tokyo|osaka|(?:^|[\s_-])JP(?=$|[\s_-]|\d)/i],
+  ["US", "🇺🇸", "美国", /美国|美西|美东|洛杉矶|硅谷|纽约|united[\s-]?states|los[\s-]?angeles|(?:^|[\s_-])US(?=$|[\s_-]|\d)/i],
+  ["SG", "🇸🇬", "新加坡", /新加坡|狮城|singapore|(?:^|[\s_-])SG(?=$|[\s_-]|\d)/i],
+  ["TW", "🇹🇼", "台湾", /台湾|臺灣|taiwan|taipei|台北|(?:^|[\s_-])TW(?=$|[\s_-]|\d)/i],
+  ["KR", "🇰🇷", "韩国", /韩国|韓國|首尔|首爾|korea|seoul|(?:^|[\s_-])KR(?=$|[\s_-]|\d)/i],
+  ["GB", "🇬🇧", "英国", /英国|英國|伦敦|倫敦|britain|united[\s-]?kingdom|london|(?:^|[\s_-])(?:GB|UK)(?=$|[\s_-]|\d)/i],
+  ["DE", "🇩🇪", "德国", /德国|德國|法兰克福|法蘭克福|germany|frankfurt|(?:^|[\s_-])DE(?=$|[\s_-]|\d)/i],
+  ["FR", "🇫🇷", "法国", /法国|法國|巴黎|france|paris|(?:^|[\s_-])FR(?=$|[\s_-]|\d)/i],
+  ["CA", "🇨🇦", "加拿大", /加拿大|canada|toronto|vancouver|(?:^|[\s_-])CA(?=$|[\s_-]|\d)/i],
+  ["AU", "🇦🇺", "澳大利亚", /澳大利亚|澳洲|australia|sydney|melbourne|(?:^|[\s_-])AU(?=$|[\s_-]|\d)/i],
+  ["NL", "🇳🇱", "荷兰", /荷兰|荷蘭|netherlands|amsterdam|(?:^|[\s_-])NL(?=$|[\s_-]|\d)/i],
+  ["RU", "🇷🇺", "俄罗斯", /俄罗斯|俄羅斯|russia|moscow|(?:^|[\s_-])RU(?=$|[\s_-]|\d)/i],
+  ["IN", "🇮🇳", "印度", /印度|india|mumbai|(?:^|[\s_-])IN(?=$|[\s_-]|\d)/i],
+  ["TR", "🇹🇷", "土耳其", /土耳其|turkey|türkiye|istanbul|(?:^|[\s_-])TR(?=$|[\s_-]|\d)/i],
+  ["VN", "🇻🇳", "越南", /越南|vietnam|hanoi|(?:^|[\s_-])VN(?=$|[\s_-]|\d)/i],
+  ["TH", "🇹🇭", "泰国", /泰国|泰國|thailand|bangkok|(?:^|[\s_-])TH(?=$|[\s_-]|\d)/i],
+  ["MY", "🇲🇾", "马来西亚", /马来西亚|馬來西亞|malaysia|kuala[\s-]?lumpur|(?:^|[\s_-])MY(?=$|[\s_-]|\d)/i],
+  ["ID", "🇮🇩", "印尼", /印尼|印度尼西亚|indonesia|jakarta|(?:^|[\s_-])ID(?=$|[\s_-]|\d)/i],
+  ["PH", "🇵🇭", "菲律宾", /菲律宾|菲律賓|philippines|manila|(?:^|[\s_-])PH(?=$|[\s_-]|\d)/i],
+  ["CH", "🇨🇭", "瑞士", /瑞士|switzerland|zurich|(?:^|[\s_-])CH(?=$|[\s_-]|\d)/i],
+  ["SE", "🇸🇪", "瑞典", /瑞典|sweden|stockholm|(?:^|[\s_-])SE(?=$|[\s_-]|\d)/i],
+  ["IT", "🇮🇹", "意大利", /意大利|義大利|italy|milan|(?:^|[\s_-])IT(?=$|[\s_-]|\d)/i],
+  ["ES", "🇪🇸", "西班牙", /西班牙|spain|madrid|(?:^|[\s_-])ES(?=$|[\s_-]|\d)/i],
+  ["BR", "🇧🇷", "巴西", /巴西|brazil|sao[\s-]?paulo|(?:^|[\s_-])BR(?=$|[\s_-]|\d)/i],
+  ["AE", "🇦🇪", "阿联酋", /阿联酋|阿聯酋|united[\s-]?arab[\s-]?emirates|dubai|(?:^|[\s_-])AE(?=$|[\s_-]|\d)/i]
+];
+const fixedRegionGroups = { HK, JP, US, SG };
+const regionMap = new Map();
+for (const nodeName of names) {
+  // 去掉 Sub-Store 的 [来源] 前缀，防止机场名称干扰国家识别。
+  const label = nodeName.replace(/^\[[^\]\r\n]+\]\s*/, "");
+  const flag = /[\u{1F1E6}-\u{1F1FF}]{2}/u.exec(label);
+  const codeFromFlag = flag ? String.fromCharCode(
+    ...Array.from(flag[0]).map(ch => ch.codePointAt(0) - 0x1F1E6 + 65)
+  ) : "";
+  const def = regionCatalog.find(([code]) => code === codeFromFlag)
+    || (!flag ? regionCatalog.find(([, , , regex]) => regex.test(label)) : null);
+  // 未列出的国旗仍可动态生成，例如 🇳🇴 → 🇳🇴 NO节点。
+  if (!def && !codeFromFlag) continue;
+  const code = def ? def[0] : codeFromFlag;
+  if (!/^[A-Z]{2}$/.test(code)) continue;
+  const emoji = def ? def[1] : flag[0];
+  const display = def ? def[2] : code;
+  if (!regionMap.has(code)) regionMap.set(code, { code, emoji, display, nodes: [] });
+  regionMap.get(code).nodes.push(nodeName);
+}
 
 function regionGroup(name, nodes, autoName) {
-  return {
-    name,
-    type: "select",
-    // 手动节点排前面；测速为可选项，绝不自动成为默认选择。
-    proxies: nodes.length ? [...nodes, autoName] : ["DIRECT"]
-  };
+  return { name, type: "select", proxies: nodes.length ? [...nodes, autoName] : ["DIRECT"] };
 }
-
-// 仅对有节点的国家创建专属自动测速子组，避免空 url-test。
 function regionAutoGroup(name, nodes) {
   return nodes.length ? [{
-    name,
-    type: "url-test",
-    proxies: nodes,
-    url: testURL,
-    interval: 300,
-    tolerance: 50
+    name, type: "url-test", proxies: nodes,
+    url: testURL, interval: 300, tolerance: 50
   }] : [];
 }
-const hkNodes = nodesFor(regex.hk);
-const jpNodes = nodesFor(regex.jp);
-const usNodes = nodesFor(regex.us);
-const sgNodes = nodesFor(regex.sg);
+const regionGroups = [];
+const regionTestGroups = [];
+const dynamicRegionNames = [];
+for (const region of regionMap.values()) {
+  const groupName = fixedRegionGroups[region.code] ||
+    region.emoji + " " + region.display + "节点";
+  const autoName = "♻️ " + region.display + "自动测速";
+  if (!fixedRegionGroups[region.code]) {
+    // 动态地区与真实节点/订阅名冲突时避免覆盖。
+    if (usedGroupNames.has(groupName) || names.includes(groupName)) continue;
+    usedGroupNames.add(groupName);
+    dynamicRegionNames.push(groupName);
+  }
+  regionGroups.push(regionGroup(groupName, region.nodes, autoName));
+  regionTestGroups.push(...regionAutoGroup(autoName, region.nodes));
+}
+// 保留传统四个组名，让已有业务策略的引用始终有效。
+for (const [code, groupName] of Object.entries(fixedRegionGroups)) {
+  if (!regionMap.has(code)) {
+    regionGroups.push({ name: groupName, type: "select", proxies: ["DIRECT"] });
+  }
+}
 
 function serviceGroup(name, options = [], first = MAIN) {
   return {
@@ -183,23 +228,25 @@ config["proxy-groups"] = [
   {
     name: MAIN,
     type: "select",
-    // 只列策略组，不直接列出原始节点。
+    // 只展示组；自动测速是可手动选用的独立策略组。
     proxies: [
+      MAIN_AUTO,
       HK, JP, US, SG,
+      ...dynamicRegionNames,
       ...sourceGroups.map(g => g.name),
       HOME_GROUP
     ]
   },
-
-  regionGroup(HK, hkNodes, HK_AUTO),
-  regionGroup(JP, jpNodes, JP_AUTO),
-  regionGroup(US, usNodes, US_AUTO),
-  regionGroup(SG, sgNodes, SG_AUTO),
-
-  ...regionAutoGroup(HK_AUTO, hkNodes),
-  ...regionAutoGroup(JP_AUTO, jpNodes),
-  ...regionAutoGroup(US_AUTO, usNodes),
-  ...regionAutoGroup(SG_AUTO, sgNodes),
+  {
+    name: MAIN_AUTO,
+    type: "url-test",
+    proxies: names,
+    url: testURL,
+    interval: 300,
+    tolerance: 50
+  },
+  ...regionGroups,
+  ...regionTestGroups,
 
   // 基于 Sub-Store 节点 _subName/_subDisplayName 自动创建订阅分组。
   ...sourceGroups,
@@ -211,6 +258,7 @@ config["proxy-groups"] = [
     type: "select",
     proxies: [
       HK, JP, US, SG,
+      ...dynamicRegionNames,
       ...sourceGroups.map(g => g.name)
     ]
   },
