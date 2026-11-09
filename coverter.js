@@ -169,8 +169,11 @@ for (const nodeName of names) {
   const codeFromFlag = flag ? String.fromCharCode(
     ...Array.from(flag[0]).map(ch => ch.codePointAt(0) - 0x1F1E6 + 65)
   ) : "";
-  const def = regionCatalog.find(([code]) => code === codeFromFlag)
-    || (!flag ? regionCatalog.find(([, , , regex]) => regex.test(label)) : null);
+  // 优先匹配明确的地区文字，避免「🇨🇳 台湾 01」错误归入 CN。
+  // 只把国旗作为缺乏明确地名时的兜底识别。
+  const labelWithoutFlags = label.replace(/[\\u{1F1E6}-\\u{1F1FF}]{2}/gu, " ");
+  const byText = regionCatalog.find(([, , , regex]) => regex.test(labelWithoutFlags));
+  const def = byText || regionCatalog.find(([code]) => code === codeFromFlag);
   // 未列出的国旗仍可动态生成，例如 🇳🇴 → 🇳🇴 NO节点。
   if (!def && !codeFromFlag) continue;
   const code = def ? def[0] : codeFromFlag;
