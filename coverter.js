@@ -71,6 +71,7 @@ const TRANSIT = "中转节点";
 const HOME_GROUP = "家宽代理";
 const ATrust = "atrust";
 const DNS_PROXY = "🌐 DNS代理";
+const MEXC_GROUP = "MEXC";
 
 // _subName 是 Sub-Store 内部来源标识，并非 Mihomo 支持的节点属性。
 // 只取来源标签用于运行时动态分组；正式输出之前清理内部元数据。
@@ -88,7 +89,7 @@ for (const proxy of config.proxies) {
   subGroups.get(sourceName).push(proxy.name);
 }
 const sourceGroups = [];
-const usedGroupNames = new Set([MAIN, MAIN_AUTO, HK, JP, US, SG, HK_AUTO, JP_AUTO, US_AUTO, SG_AUTO, TRANSIT, HOME_GROUP, ATrust, DNS_PROXY,
+const usedGroupNames = new Set([MAIN, MAIN_AUTO, HK, JP, US, SG, HK_AUTO, JP_AUTO, US_AUTO, SG_AUTO, TRANSIT, HOME_GROUP, ATrust, DNS_PROXY, MEXC_GROUP,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "💬 社交通信", "💰 金融服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   // 用 Sub-Store 本来的订阅名作为组名，例如 amy，不在代码中固定具体订阅名。
@@ -329,6 +330,19 @@ config["proxy-groups"] = [
     MAIN, HK, JP, US, SG
   ], "DIRECT"),
 
+  // MEXC 独立出口：默认家宽代理，可手动切换普通组或直连。
+  {
+    name: MEXC_GROUP,
+    type: "select",
+    proxies: [
+      HOME_GROUP, MAIN,
+      HK, JP, US, SG,
+      ...dynamicRegionNames,
+      ...sourceGroups.map(g => g.name),
+      "DIRECT"
+    ]
+  },
+
   // Apple 默认 DIRECT
   serviceGroup("🍎 Apple 服务", [
     MAIN, HK, JP, US
@@ -426,18 +440,18 @@ config.rules = [
 
   // MEXC：主站、现货/合约 API、WebSocket、静态资源均使用家宽出口。
   // 关键字覆盖 MEXC 旗下新子域与常见镜像域名，但第三方公共 CDN 不做全局劫持。
-  "DOMAIN-KEYWORD,mexc,家宽代理",
-  "DOMAIN-SUFFIX,mexc.com,家宽代理",
-  "DOMAIN-SUFFIX,mexc.co,家宽代理",
-  "DOMAIN-SUFFIX,mexc.io,家宽代理",
-  "DOMAIN-SUFFIX,mexc.in,家宽代理",
-  "DOMAIN-SUFFIX,mexc.me,家宽代理",
-  "DOMAIN-SUFFIX,mexc.fm,家宽代理",
-  "DOMAIN-SUFFIX,mexceu.com,家宽代理",
-  "DOMAIN-SUFFIX,static.mocortech.com,家宽代理",
-  "DOMAIN-SUFFIX,public.mocortech.com,家宽代理",
-  "DOMAIN-SUFFIX,trochilus-web.gotoda.co,家宽代理",
-  "DOMAIN-SUFFIX,trochi.gotoda.co,家宽代理",
+  "DOMAIN-KEYWORD,mexc,MEXC",
+  "DOMAIN-SUFFIX,mexc.com,MEXC",
+  "DOMAIN-SUFFIX,mexc.co,MEXC",
+  "DOMAIN-SUFFIX,mexc.io,MEXC",
+  "DOMAIN-SUFFIX,mexc.in,MEXC",
+  "DOMAIN-SUFFIX,mexc.me,MEXC",
+  "DOMAIN-SUFFIX,mexc.fm,MEXC",
+  "DOMAIN-SUFFIX,mexceu.com,MEXC",
+  "DOMAIN-SUFFIX,static.mocortech.com,MEXC",
+  "DOMAIN-SUFFIX,public.mocortech.com,MEXC",
+  "DOMAIN-SUFFIX,trochilus-web.gotoda.co,MEXC",
+  "DOMAIN-SUFFIX,trochi.gotoda.co,MEXC",
 
   // 局域网
   "DOMAIN-SUFFIX,localhost,DIRECT",
