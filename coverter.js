@@ -424,6 +424,21 @@ config.rules = [
   "DOMAIN-SUFFIX,merpay.com,家宽代理",
   "DOMAIN-SUFFIX,mercdn.net,家宽代理",
 
+  // MEXC：主站、现货/合约 API、WebSocket、静态资源均使用家宽出口。
+  // 关键字覆盖 MEXC 旗下新子域与常见镜像域名，但第三方公共 CDN 不做全局劫持。
+  "DOMAIN-KEYWORD,mexc,家宽代理",
+  "DOMAIN-SUFFIX,mexc.com,家宽代理",
+  "DOMAIN-SUFFIX,mexc.co,家宽代理",
+  "DOMAIN-SUFFIX,mexc.io,家宽代理",
+  "DOMAIN-SUFFIX,mexc.in,家宽代理",
+  "DOMAIN-SUFFIX,mexc.me,家宽代理",
+  "DOMAIN-SUFFIX,mexc.fm,家宽代理",
+  "DOMAIN-SUFFIX,mexceu.com,家宽代理",
+  "DOMAIN-SUFFIX,static.mocortech.com,家宽代理",
+  "DOMAIN-SUFFIX,public.mocortech.com,家宽代理",
+  "DOMAIN-SUFFIX,trochilus-web.gotoda.co,家宽代理",
+  "DOMAIN-SUFFIX,trochi.gotoda.co,家宽代理",
+
   // 局域网
   "DOMAIN-SUFFIX,localhost,DIRECT",
   "DOMAIN-SUFFIX,local,DIRECT",
