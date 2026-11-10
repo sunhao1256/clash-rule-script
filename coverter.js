@@ -19,9 +19,6 @@ if (!config || typeof config !== "object" || Array.isArray(config)) {
   throw new Error("无效的 Mihomo YAML 配置");
 }
 
-// 统一代理延迟计算，减少不同协议握手对面板测速的影响。
-config["unified-delay"] = true;
-
 // ==============================
 // 1. TUN 修复
 // ==============================
