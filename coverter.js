@@ -239,6 +239,7 @@ config["proxy-groups"] = [
     // 只展示组；自动测速是可手动选用的独立策略组。
     proxies: [
       MAIN_AUTO,
+      ...regionTestGroups.map(g => g.name),
       HK, JP, US, SG,
       ...dynamicRegionNames,
       ...sourceGroups.map(g => g.name),
