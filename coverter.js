@@ -70,6 +70,7 @@ const LOCAL_NODES = {
 const TRANSIT = "中转节点";
 const HOME_GROUP = "家宽代理";
 const ATrust = "atrust";
+const DNS_PROXY = "🌐 DNS代理";
 
 // _subName 是 Sub-Store 内部来源标识，并非 Mihomo 支持的节点属性。
 // 只取来源标签用于运行时动态分组；正式输出之前清理内部元数据。
@@ -87,7 +88,7 @@ for (const proxy of config.proxies) {
   subGroups.get(sourceName).push(proxy.name);
 }
 const sourceGroups = [];
-const usedGroupNames = new Set([MAIN, MAIN_AUTO, HK, JP, US, SG, HK_AUTO, JP_AUTO, US_AUTO, SG_AUTO, TRANSIT, HOME_GROUP, ATrust,
+const usedGroupNames = new Set([MAIN, MAIN_AUTO, HK, JP, US, SG, HK_AUTO, JP_AUTO, US_AUTO, SG_AUTO, TRANSIT, HOME_GROUP, ATrust, DNS_PROXY,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "💬 社交通信", "💰 金融服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   // 用 Sub-Store 本来的订阅名作为组名，例如 amy，不在代码中固定具体订阅名。
@@ -270,6 +271,19 @@ config["proxy-groups"] = [
     ]
   },
 
+  // DNS 出口：默认复用主节点选择，也能手动指定地区、来源组或 DIRECT。
+  // 不直接加入家宽代理，避免 DNS 引入另一层链式依赖。
+  {
+    name: DNS_PROXY,
+    type: "select",
+    proxies: [
+      MAIN, HK, JP, US, SG,
+      ...dynamicRegionNames,
+      ...sourceGroups.map(g => g.name),
+      "DIRECT"
+    ]
+  },
+
   // 家宽代理：仅来源「家宽」的链式副本，全部经过「中转节点」。
   {
     name: HOME_GROUP,
@@ -331,6 +345,12 @@ config["proxy-groups"] = [
 // DNS listen 保持原配置，OpenClash 可按自身设置覆盖端口。
 // ==============================
 const dnsServers = ["223.5.5.5", "119.29.29.29"];
+// 国外 DoH 指定独立选择组。DNS_PROXY 默认指向 MAIN，但支持手动 DIRECT。
+// 代理节点域名仍经国内 DNS 解析，避免 DoH 和节点服务器之间产生解析循环。
+const overseasDns = [
+  "https://cloudflare-dns.com/dns-query#" + DNS_PROXY,
+  "https://dns.google/dns-query#" + DNS_PROXY
+];
 config.dns = {
   ...(config.dns || {}),
   enable: true,
@@ -342,10 +362,11 @@ config.dns = {
   "default-nameserver": [...dnsServers],
   "proxy-server-nameserver": [...dnsServers],
   nameserver: [...dnsServers],
-  // 不区分国内外 DNS 上游，避免国外 DoH 不可用导致解析失败。
+  // 内网优先本地 DNS（沿用用户原有配置可用时的 upstream）。
+  // 国内域名直连国内 DNS；国外域名经手选 DNS 代理访问海外 DoH。
   "nameserver-policy": {
     "geosite:cn": [...dnsServers],
-    "geosite:geolocation-!cn": [...dnsServers]
+    "geosite:geolocation-!cn": [...overseasDns]
   },
   "fake-ip-filter": [
     ...(Array.isArray(config.dns?.["fake-ip-filter"]) ? config.dns["fake-ip-filter"] : []),
