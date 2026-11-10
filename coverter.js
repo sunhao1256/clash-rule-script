@@ -217,13 +217,17 @@ for (const [code, groupName] of Object.entries(fixedRegionGroups)) {
 }
 
 function serviceGroup(name, options = [], first = MAIN) {
+  // 保留原有默认选项和地区组，再加入 Sub-Store 来源分组供手动选择。
+  // 仅引用分组名称，不将原始节点直接展开到业务组。
+  const subNameGroups = sourceGroups.map(g => g.name);
   return {
     name,
     type: "select",
-    proxies: [
+    proxies: [...new Set([
       first,
-      ...options.filter(x => x !== first)
-    ]
+      ...options,
+      ...subNameGroups
+    ])]
   };
 }
 
