@@ -23,12 +23,27 @@ if (!config || typeof config !== "object" || Array.isArray(config)) {
 // 1. TUN 修复
 // ==============================
 
-config.tun = config.tun || {};
-config.tun.stack = "system";
+// 使用兼容 OpenClash 的 system 协议栈，启用 TUN DNS 劫持。
+config.tun = {
+  ...(config.tun || {}),
+  enable: true,
+  stack: "system",
+  "auto-route": true,
+  "auto-detect-interface": true,
+  "disable-icmp-forwarding": true,
+  "dns-hijack": ["any:53", "tcp://any:53"],
+  "strict-route": true
+};
 
-if (config.tun.enable === undefined) {
-  config.tun.enable = false;
-}
+config.sniffer = {
+  enable: true,
+  "parse-pure-ip": false,
+  "override-destination": false,
+  sniff: {
+    TLS: { ports: [443, 8443] },
+    HTTP: { ports: [80, "8080-8880"], "override-destination": true }
+  }
+};
 
 // ==============================
 // 2. 机场节点
@@ -241,7 +256,7 @@ config["proxy-groups"] = [
     proxies: [
       MAIN_AUTO,
       ...regionTestGroups.map(g => g.name),
-      HK, JP, US, SG,
+      ...[HK, JP, US, SG].filter(name => regionGroups.some(g => g.name === name && g.proxies[0] !== "DIRECT")),
       ...dynamicRegionNames,
       ...sourceGroups.map(g => g.name),
       HOME_GROUP
@@ -273,16 +288,16 @@ config["proxy-groups"] = [
     ]
   },
 
-  // DNS 出口：默认复用主节点选择，也能手动指定地区、来源组或 DIRECT。
+  // DNS 出口：默认复用主节点选择，只允许选择代理策略组。
   // 不直接加入家宽代理，避免 DNS 引入另一层链式依赖。
   {
     name: DNS_PROXY,
     type: "select",
     proxies: [
-      MAIN, HK, JP, US, SG,
+      MAIN,
+      ...[HK, JP, US, SG].filter(name => regionGroups.some(g => g.name === name && g.proxies[0] !== "DIRECT")),
       ...dynamicRegionNames,
-      ...sourceGroups.map(g => g.name),
-      "DIRECT"
+      ...sourceGroups.map(g => g.name)
     ]
   },
 
@@ -354,42 +369,56 @@ config["proxy-groups"] = [
 ];
 
 // ==============================
+// 4. DNS / Leak-Guard
 // ==============================
-// 4. DNS：统一使用国内 DNS，查询不走代理
-// 国内外域名均使用国内 DNS 直连解析；不使用 DoH/DoT。
-// DNS listen 保持原配置，OpenClash 可按自身设置覆盖端口。
-// ==============================
-const dnsServers = ["223.5.5.5", "119.29.29.29"];
-// 国外 DoH 指定独立选择组。DNS_PROXY 默认指向 MAIN，但支持手动 DIRECT。
-// 代理节点域名仍经国内 DNS 解析，避免 DoH 和节点服务器之间产生解析循环。
-const overseasDns = [
+// OpenClash 通常由 dnsmasq 占用 53，保留原监听端口。
+const dnsListen = config.dns?.listen || "0.0.0.0:1053";
+const domesticDoh = [
+  "https://223.5.5.5/dns-query#DIRECT",
+  "https://1.12.12.12/dns-query#DIRECT"
+];
+const localDns = ["192.168.31.1#DIRECT"];
+const overseasDoh = [
   "https://cloudflare-dns.com/dns-query#" + DNS_PROXY,
   "https://dns.google/dns-query#" + DNS_PROXY
 ];
 config.dns = {
-  ...(config.dns || {}),
   enable: true,
-  listen: config.dns?.listen || "0.0.0.0:1053",
+  listen: dnsListen,
   ipv6: false,
-  "enhanced-mode": "redir-host",
-  "use-hosts": true,
-  "respect-rules": false,
-  "default-nameserver": [...dnsServers],
-  "proxy-server-nameserver": [...dnsServers],
-  nameserver: [...dnsServers],
-  // 内网优先本地 DNS（沿用用户原有配置可用时的 upstream）。
-  // 国内域名直连国内 DNS；国外域名经手选 DNS 代理访问海外 DoH。
+  "cache-algorithm": "arc",
+  "respect-rules": true,
+  "use-hosts": false,
+  "use-system-hosts": false,
+  "prefer-h3": false,
+  "default-nameserver": ["223.5.5.5", "114.114.114.114"],
   "nameserver-policy": {
-    "geosite:cn": [...dnsServers],
-    "geosite:geolocation-!cn": [...overseasDns]
+    "+.lulu": localDns,
+    "+.lan": localDns,
+    "+.local": localDns,
+    "+.arpa": localDns,
+    "+.ts.net": localDns,
+    "rule-set:Private_Domain": localDns,
+    "rule-set:CN_Domain": domesticDoh
   },
+  nameserver: overseasDoh,
+  "proxy-server-nameserver": ["223.5.5.5#DIRECT", "119.29.29.29#DIRECT"],
+  "direct-nameserver": domesticDoh,
+  // 内网域名必须继续使用本地 DNS，避免 DIRECT 阶段重新解析失败。
+  "direct-nameserver-follow-policy": true,
+  "enhanced-mode": "fake-ip",
+  "fake-ip-range": "198.18.0.1/16",
+  "fake-ip-filter-mode": "rule",
   "fake-ip-filter": [
-    ...(Array.isArray(config.dns?.["fake-ip-filter"]) ? config.dns["fake-ip-filter"] : []),
-    "*.lan", "*.local", "*.localhost", "localhost",
-    "time.*.com", "time.*.gov", "time.*.edu.cn",
-    "ntp.*.com", "+.pool.ntp.org",
-    "stun.*.*", "stun.*.*.*",
-    "+.msftconnecttest.com", "+.msftncsi.com"
+    "DOMAIN-SUFFIX,lulu,real-ip",
+    "DOMAIN-SUFFIX,localhost,real-ip",
+    "DOMAIN-SUFFIX,lan,real-ip",
+    "DOMAIN-SUFFIX,local,real-ip",
+    "DOMAIN-SUFFIX,arpa,real-ip",
+    "DOMAIN-SUFFIX,ts.net,real-ip",
+    "DOMAIN-SUFFIX,ntp.org,real-ip",
+    "RULE-SET,Private_Domain,real-ip",
+    "MATCH,fake-ip"
   ]
 };
 
@@ -399,6 +428,21 @@ config.dns = {
 
 config["rule-providers"] =
   config["rule-providers"] || {};
+
+for (const [name, behavior, path] of [
+  ["Private_Domain", "domain", "geosite/private"],
+  ["CN_Domain", "domain", "geosite/cn"],
+  ["CN_IP", "ipcidr", "geoip/cn"]
+]) {
+  config["rule-providers"][name] = {
+    type: "http",
+    behavior,
+    format: "mrs",
+    url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/" + path + ".mrs",
+    path: "./ruleset/" + name + ".mrs",
+    interval: 86400
+  };
+}
 
 config["rule-providers"].Advertising = {
   type: "http",
@@ -428,8 +472,27 @@ config["geox-url"] = {
 // ==============================
 
 config.rules = [
-  // 本地自定义分流：在通用分流和 GEO 规则之前
+  // 私有域名及局域网优先直连
+  "RULE-SET,Private_Domain,DIRECT",
   "DOMAIN-SUFFIX,lulu,DIRECT",
+  "DOMAIN-SUFFIX,localhost,DIRECT",
+  "DOMAIN-SUFFIX,local,DIRECT",
+  "DOMAIN-SUFFIX,lan,DIRECT",
+  "DOMAIN-SUFFIX,ts.net,DIRECT",
+  "DOMAIN-SUFFIX,tailscale.com,DIRECT",
+  "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
+  "IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
+  "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
+  "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
+  "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
+  "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
+  "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
+  "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
+
+  // 禁止公网 QUIC，促使浏览器回退 TCP。
+  "AND,((NETWORK,udp),(DST-PORT,443)),REJECT",
+
+  // 本地自定义分流：在通用分流和 GEO 规则之前
   "DOMAIN-SUFFIX,onitsukatiger.com,家宽代理",
   "DOMAIN-SUFFIX,onitsukatiger.jp,家宽代理",
   "DOMAIN-KEYWORD,mercari,家宽代理",
@@ -452,20 +515,6 @@ config.rules = [
   "DOMAIN-SUFFIX,public.mocortech.com,MEXC",
   "DOMAIN-SUFFIX,trochilus-web.gotoda.co,MEXC",
   "DOMAIN-SUFFIX,trochi.gotoda.co,MEXC",
-
-  // 局域网
-  "DOMAIN-SUFFIX,localhost,DIRECT",
-  "DOMAIN-SUFFIX,local,DIRECT",
-  "DOMAIN-SUFFIX,lan,DIRECT",
-  "DOMAIN-SUFFIX,ts.net,DIRECT",
-  "DOMAIN-SUFFIX,tailscale.com,DIRECT",
-  "IP-CIDR,127.0.0.0/8,DIRECT,no-resolve",
-  "IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
-  "IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
-  "IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
-  "IP-CIDR,100.64.0.0/10,DIRECT,no-resolve",
-  "IP-CIDR6,fc00::/7,DIRECT,no-resolve",
-  "IP-CIDR6,fe80::/10,DIRECT,no-resolve",
 
   // Cloudflare 全家桶与 R2 默认直连（需在通用分流规则之前）
   "DOMAIN-SUFFIX,cloudflare.com,DIRECT",
@@ -601,8 +650,8 @@ config.rules = [
   "RULE-SET,Advertising,REJECT",
 
   // 中国大陆直连
-  "GEOSITE,CN,DIRECT",
-  "GEOIP,CN,DIRECT,no-resolve",
+  "RULE-SET,CN_Domain,DIRECT",
+  "RULE-SET,CN_IP,DIRECT,no-resolve",
 
   // 其他流量代理
   "MATCH,🐟 漏网之鱼"
@@ -620,8 +669,6 @@ config.profile = {
 // ==============================
 // 9. 输出
 // ==============================
-
-config.tun.stack = "system";
 
 $content = ProxyUtils.yaml.dump(config);
 
