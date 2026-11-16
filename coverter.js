@@ -85,7 +85,6 @@ const LOCAL_NODES = {
 const TRANSIT = "中转节点";
 const HOME_GROUP = "家宽代理";
 const ATrust = "atrust";
-const DNS_PROXY = "🌐 DNS代理";
 const MEXC_GROUP = "MEXC";
 
 // _subName 是 Sub-Store 内部来源标识，并非 Mihomo 支持的节点属性。
@@ -104,7 +103,7 @@ for (const proxy of config.proxies) {
   subGroups.get(sourceName).push(proxy.name);
 }
 const sourceGroups = [];
-const usedGroupNames = new Set([MAIN, MAIN_AUTO, HK, JP, US, SG, HK_AUTO, JP_AUTO, US_AUTO, SG_AUTO, TRANSIT, HOME_GROUP, ATrust, DNS_PROXY, MEXC_GROUP,
+const usedGroupNames = new Set([MAIN, MAIN_AUTO, HK, JP, US, SG, HK_AUTO, JP_AUTO, US_AUTO, SG_AUTO, TRANSIT, HOME_GROUP, ATrust, MEXC_GROUP,
   "🤖 AI 服务", "📺 流媒体", "🔎 Google 服务", "💻 开发服务", "💬 社交通信", "💰 金融服务", "🍎 Apple 服务", "🐟 漏网之鱼"]);
 for (const [sourceName, proxyNames] of subGroups) {
   // 用 Sub-Store 本来的订阅名作为组名，例如 amy，不在代码中固定具体订阅名。
@@ -288,19 +287,6 @@ config["proxy-groups"] = [
     ]
   },
 
-  // DNS 出口：默认复用主节点选择，只允许选择代理策略组。
-  // 不直接加入家宽代理，避免 DNS 引入另一层链式依赖。
-  {
-    name: DNS_PROXY,
-    type: "select",
-    proxies: [
-      MAIN,
-      ...[HK, JP, US, SG].filter(name => regionGroups.some(g => g.name === name && g.proxies[0] !== "DIRECT")),
-      ...dynamicRegionNames,
-      ...sourceGroups.map(g => g.name)
-    ]
-  },
-
   // 家宽代理：仅来源「家宽」的链式副本，全部经过「中转节点」。
   {
     name: HOME_GROUP,
@@ -379,8 +365,8 @@ const domesticDoh = [
 ];
 const localDns = ["192.168.31.1#DIRECT"];
 const overseasDoh = [
-  "https://cloudflare-dns.com/dns-query#" + DNS_PROXY,
-  "https://dns.google/dns-query#" + DNS_PROXY
+  "https://cloudflare-dns.com/dns-query#" + MAIN,
+  "https://dns.google/dns-query#" + MAIN
 ];
 config.dns = {
   enable: true,
