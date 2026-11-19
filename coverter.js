@@ -502,20 +502,6 @@ config.rules = [
   "DOMAIN-SUFFIX,trochilus-web.gotoda.co,MEXC",
   "DOMAIN-SUFFIX,trochi.gotoda.co,MEXC",
 
-  // Cloudflare 全家桶与 R2 默认直连（需在通用分流规则之前）
-  "DOMAIN-SUFFIX,cloudflare.com,DIRECT",
-  "DOMAIN-SUFFIX,cloudflare.net,DIRECT",
-  "DOMAIN-SUFFIX,cloudflare-dns.com,DIRECT",
-  "DOMAIN-SUFFIX,cloudflarestorage.com,DIRECT",
-  "DOMAIN-SUFFIX,cloudflareinsights.com,DIRECT",
-  "DOMAIN-SUFFIX,cloudflareaccess.com,DIRECT",
-  "DOMAIN-SUFFIX,cloudflareclient.com,DIRECT",
-  "DOMAIN-SUFFIX,cloudflarestream.com,DIRECT",
-  "DOMAIN-SUFFIX,cloudflarepages.com,DIRECT",
-  "DOMAIN-SUFFIX,cloudflareworkers.com,DIRECT",
-  "DOMAIN-SUFFIX,workers.dev,DIRECT",
-  "DOMAIN-SUFFIX,pages.dev,DIRECT",
-
   // 常用办公协作软件优先直连（在 AI / Google 规则之前）
   // Microsoft Teams / Microsoft 365 / Outlook / OneDrive / SharePoint
   "DOMAIN-SUFFIX,teams.microsoft.com,DIRECT",
