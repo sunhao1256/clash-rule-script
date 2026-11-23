@@ -298,9 +298,12 @@ config["proxy-groups"] = [
     name: ATrust,
     type: "select",
     proxies: [
-      ...[LOCAL_NODES.companyKeyword, LOCAL_NODES.homeKeyword]
-        .map(keyword => names.find(name => name.includes(keyword)))
-        .filter(Boolean),
+      ...[...new Set(
+        names.filter(name =>
+          [LOCAL_NODES.companyKeyword, LOCAL_NODES.homeKeyword]
+            .some(keyword => name.includes(keyword))
+        )
+      )],
       "DIRECT"
     ]
   },
