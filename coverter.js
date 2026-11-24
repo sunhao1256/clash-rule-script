@@ -433,17 +433,6 @@ for (const [name, behavior, path] of [
   };
 }
 
-// 补充中国大陆域名，减少 CN_Domain 未收录域名落入代理兜底。
-// 使用域名型规则集，避免把其 IP 规则误当作域名规则。
-config["rule-providers"].ChinaExtra = {
-  type: "http",
-  behavior: "domain",
-  format: "yaml",
-  url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMax/ChinaMax_Domain.yaml",
-  path: "./ruleset/ChinaExtra.yaml",
-  interval: 86400
-};
-
 config["rule-providers"].Advertising = {
   type: "http",
   behavior: "classical",
@@ -686,7 +675,6 @@ config.rules = [
 
   // 中国大陆直连：业务定向规则已优先匹配，避免误直连指定代理服务。
   "RULE-SET,CN_Domain,DIRECT",
-  "RULE-SET,ChinaExtra,DIRECT",
   // 不加 no-resolve：允许域名经 DNS 解析后按中国大陆 IP 判断。
   "RULE-SET,CN_IP,DIRECT",
   "GEOIP,CN,DIRECT",
